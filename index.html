@@ -24,7 +24,6 @@
     padding: 24px 16px;
     -webkit-tap-highlight-color: transparent;
   }
-  h1 { font-size: 1.4rem; margin: 0 0 20px; text-align: center; }
   .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; width: min(90vw, 460px); }
   select, button {
     font: inherit;
@@ -42,6 +41,7 @@
     background: #2d3748;
     border-radius: 16px;
     padding: 28px;
+    font-size: 1.1rem; /* baseline; A-/A+ scale this, name & ability use em */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -62,23 +62,23 @@
     color: #fff;
     margin-bottom: 16px;
   }
-  .name { font-size: 1.8rem; font-weight: 700; }
-  .ability { font-size: 1.15rem; line-height: 1.5; color: #e2e8f0; }
-  .hint { color: #718096; font-size: .8rem; margin-top: 20px; }
+  .name { font-size: 1.65em; font-weight: 700; }
+  .ability { font-size: 1.05em; line-height: 1.5; color: #e2e8f0; }
+  .hint { color: #718096; font-size: .75rem; margin-top: 20px; }
   .nav { display: flex; gap: 12px; margin-top: 18px; align-items: center; }
   .progress { color: #a0aec0; font-size: .9rem; min-width: 70px; text-align: center; }
+  .sizer { display: flex; gap: 8px; margin-top: 12px; }
+  .sizer button { font-size: .9rem; padding: 6px 14px; color: #a0aec0; }
 
   /* On phones: full-width, thumb-friendly controls */
   @media (max-width: 480px) {
-    h1 { font-size: 1.2rem; }
+    body { padding: 16px 16px 24px; }
     .controls > * { flex: 1 1 100%; padding: 12px 14px; text-align: center; }
     .nav button { padding: 12px 18px; }
   }
 </style>
 </head>
 <body>
-  <h1>Blood on the Clocktower — Flashcards</h1>
-
   <div class="controls">
     <select id="scriptFilter"></select>
     <select id="typeFilter"></select>
@@ -86,17 +86,22 @@
     <button id="orderToggle">📋 In order</button>
   </div>
 
-  <div class="card" id="card" onclick="flip()">
+  <div class="card" id="card">
     <div class="badge" id="badge"></div>
     <div id="front"></div>
     <div id="back" style="display:none"></div>
-    <div class="hint" id="hint">Tap card to flip</div>
+    <div class="hint" id="hint"></div>
   </div>
 
   <div class="nav">
     <button onclick="prev()">← Prev</button>
     <span class="progress" id="progress"></span>
     <button onclick="next()">Next →</button>
+  </div>
+
+  <div class="sizer">
+    <button onclick="changeSize(-1)" aria-label="Smaller text">A−</button>
+    <button onclick="changeSize(1)" aria-label="Bigger text">A+</button>
   </div>
 
 <script>
@@ -273,6 +278,7 @@ let idx = 0;
 let flipped = false;
 let ordered = true; // true = team/alphabetical order, false = shuffled
 let showName = true; // true = show name, guess ability; false = the reverse
+let fontScale = parseFloat(localStorage.getItem('botcFontScale')) || 1.1; // card text size (rem)
 
 // Build script filter
 const scriptFilter = document.getElementById('scriptFilter');
@@ -324,6 +330,16 @@ function toggleMode() {
   render();
 }
 
+function applyScale() {
+  document.getElementById('card').style.fontSize = fontScale + 'rem';
+}
+
+function changeSize(dir) {
+  fontScale = Math.min(2.2, Math.max(0.8, fontScale + dir * 0.15));
+  localStorage.setItem('botcFontScale', fontScale);
+  applyScale();
+}
+
 function flip() { flipped = !flipped; render(); }
 function next() { idx = (idx + 1) % deck.length; flipped = false; render(); }
 function prev() { idx = (idx - 1 + deck.length) % deck.length; flipped = false; render(); }
@@ -359,7 +375,7 @@ function render() {
   front.innerHTML = promptHtml;
   back.innerHTML = answerHtml;
 
-  document.getElementById('hint').textContent = flipped ? 'Tap to hide' : 'Tap to reveal';
+  document.getElementById('hint').textContent = flipped ? 'Tap to hide' : 'Tap to reveal · swipe ↔ to change';
   document.getElementById('progress').textContent = `${idx + 1} / ${deck.length}`;
 }
 
@@ -368,6 +384,26 @@ filter.addEventListener('change', buildDeck);
 document.getElementById('modeToggle').addEventListener('click', toggleMode);
 document.getElementById('orderToggle').addEventListener('click', toggleOrder);
 
+// Card interaction: tap to flip, swipe left/right to navigate
+const cardEl = document.getElementById('card');
+let touchX = 0, touchY = 0, swiped = false;
+cardEl.addEventListener('click', () => {
+  if (swiped) { swiped = false; return; } // a swipe just happened; don't flip
+  flip();
+});
+cardEl.addEventListener('touchstart', e => {
+  const t = e.changedTouches[0];
+  touchX = t.clientX; touchY = t.clientY; swiped = false;
+}, { passive: true });
+cardEl.addEventListener('touchend', e => {
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchX, dy = t.clientY - touchY;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+    swiped = true; // mark so the trailing click doesn't also flip
+    if (dx < 0) next(); else prev();
+  }
+}, { passive: true });
+
 // Keyboard: space/enter flip, arrows navigate
 document.addEventListener('keydown', e => {
   if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
@@ -375,6 +411,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') prev();
 });
 
+applyScale();
 buildDeck();
 </script>
 </body>
