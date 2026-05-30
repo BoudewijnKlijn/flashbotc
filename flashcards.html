@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BotC Flashcards</title>
+<style>
+  :root {
+    --townsfolk: #2b6cb0;
+    --outsider: #2c7a7b;
+    --minion: #c05621;
+    --demon: #c53030;
+    --traveller: #6b46c1;
+    --fabled: #b7791f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #1a202c;
+    color: #f7fafc;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: #a0aec0; font-size: .85rem; margin-bottom: 20px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+  select, button {
+    font: inherit;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+    background: #2d3748;
+    color: #f7fafc;
+    cursor: pointer;
+  }
+  button:hover, select:hover { background: #4a5568; }
+  .card {
+    width: min(90vw, 460px);
+    min-height: 280px;
+    background: #2d3748;
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    border-top: 6px solid #4a5568;
+    user-select: none;
+    transition: transform .08s;
+  }
+  .card:active { transform: scale(.99); }
+  .badge {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  .name { font-size: 1.8rem; font-weight: 700; }
+  .ability { font-size: 1.15rem; line-height: 1.5; color: #e2e8f0; }
+  .hint { color: #718096; font-size: .8rem; margin-top: 20px; }
+  .nav { display: flex; gap: 12px; margin-top: 18px; align-items: center; }
+  .progress { color: #a0aec0; font-size: .9rem; min-width: 70px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>Blood on the Clocktower — Flashcards</h1>
+  <div class="sub" id="scriptName"></div>
+
+  <div class="controls">
+    <select id="typeFilter"></select>
+    <select id="mode">
+      <option value="name">Show name → guess ability</option>
+      <option value="ability">Show ability → guess name</option>
+    </select>
+    <button id="shuffle">🔀 Shuffle</button>
+  </div>
+
+  <div class="card" id="card" onclick="flip()">
+    <div class="badge" id="badge"></div>
+    <div id="front"></div>
+    <div id="back" style="display:none"></div>
+    <div class="hint" id="hint">Click card to flip</div>
+  </div>
+
+  <div class="nav">
+    <button onclick="prev()">← Prev</button>
+    <span class="progress" id="progress"></span>
+    <button onclick="next()">Next →</button>
+  </div>
+
+<script>
+const DATA = {
+  "script": "Whalebuffet",
+  "source": "https://www.pocketgrimoire.co.uk/en_GB/sheet?name=Whalebuffet",
+  "characters": {
+    "Townsfolk": [
+      {"name": "Acrobat", "ability": "Each night*, choose a player: if they are or become drunk or poisoned tonight, you die."},
+      {"name": "Alchemist", "ability": "You have a Minion ability. When using this, the Storyteller may prompt you to choose differently."},
+      {"name": "Alsaahir", "ability": "Each day, if you publicly guess which players are Minion(s) and which are Demon(s), good wins."},
+      {"name": "Amnesiac", "ability": "You do not know what your ability is. Each day, privately guess what it is: you learn how accurate you are."},
+      {"name": "Artist", "ability": "Once per game, during the day, privately ask the Storyteller any yes/no question."},
+      {"name": "Balloonist", "ability": "Each night, you learn a player of a different character type than last night. [+0 or +1 Outsider]"},
+      {"name": "Banshee", "ability": "If the Demon kills you, all players learn this. From now on, you may nominate twice per day and vote twice per nomination."},
+      {"name": "Bounty Hunter", "ability": "You start knowing 1 evil player. If the player you know dies, you learn another evil player tonight. [1 Townsfolk is evil]"},
+      {"name": "Cannibal", "ability": "You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution."},
+      {"name": "Chambermaid", "ability": "Each night, choose 2 alive players (not yourself): you learn how many woke tonight due to their ability."},
+      {"name": "Chef", "ability": "You start knowing how many pairs of evil players there are."},
+      {"name": "Choirboy", "ability": "If the Demon kills the King, you learn which player is the Demon. [+the King]"},
+      {"name": "Clockmaker", "ability": "You start knowing how many steps from the Demon to its nearest Minion."},
+      {"name": "Courtier", "ability": "Once per game, at night, choose a character: they are drunk for 3 nights & 3 days."},
+      {"name": "Cult Leader", "ability": "Each night, you become the alignment of an alive neighbor. If all good players choose to join your cult, your team wins."},
+      {"name": "Dreamer", "ability": "Each night, choose a player (not yourself or Travellers): you learn 1 good & 1 evil character, 1 of which is correct."},
+      {"name": "Empath", "ability": "Each night, you learn how many of your 2 alive neighbors are evil."},
+      {"name": "Exorcist", "ability": "Each night*, choose a player (different to last night): the Demon, if chosen, learns who you are then doesn't wake tonight."},
+      {"name": "Farmer", "ability": "When you die at night, an alive good player becomes a Farmer."},
+      {"name": "Fisherman", "ability": "Once per game, during the day, visit the Storyteller for some advice to help your team win."},
+      {"name": "Flowergirl", "ability": "Each night*, you learn if a Demon voted today."},
+      {"name": "Fool", "ability": "The 1st time you die, you don't."},
+      {"name": "Fortune Teller", "ability": "Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you."},
+      {"name": "Gambler", "ability": "Each night*, choose a player & guess their character: if you guess wrong, you die."},
+      {"name": "General", "ability": "Each night, you learn which alignment the Storyteller believes is winning: good, evil, or neither."},
+      {"name": "Gossip", "ability": "Each day, you may make a public statement. Tonight, if it was true, a player dies."},
+      {"name": "Grandmother", "ability": "You start knowing a good player & their character. If the Demon kills them, you die too."},
+      {"name": "High Priestess", "ability": "Each night, learn which player the Storyteller believes you should talk to most."},
+      {"name": "Huntsman", "ability": "Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]"},
+      {"name": "Innkeeper", "ability": "Each night*, choose 2 players: they can't die tonight, but 1 is drunk until dusk."},
+      {"name": "Investigator", "ability": "You start knowing that 1 of 2 players is a particular Minion."},
+      {"name": "Juggler", "ability": "On your 1st day, publicly guess up to 5 players' characters. That night, you learn how many you got correct."},
+      {"name": "King", "ability": "Each night, if the dead equal or outnumber the living, you learn 1 alive character. The Demon knows you are the King."},
+      {"name": "Knight", "ability": "You start knowing 2 players that are not the Demon."},
+      {"name": "Librarian", "ability": "You start knowing that 1 of 2 players is a particular Outsider. (Or that zero are in play.)"},
+      {"name": "Lycanthrope", "ability": "Each night*, choose an alive player. If good, they die & the Demon doesn't kill tonight. One good player registers as evil."},
+      {"name": "Magician", "ability": "The Demon thinks you are a Minion. Minions think you are a Demon."},
+      {"name": "Mathematician", "ability": "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability."},
+      {"name": "Mayor", "ability": "If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead."},
+      {"name": "Minstrel", "ability": "When a Minion dies by execution, all other players (except Travellers) are drunk until dusk tomorrow."},
+      {"name": "Monk", "ability": "Each night*, choose a player (not yourself): they are safe from the Demon tonight."},
+      {"name": "Nightwatchman", "ability": "Once per game, at night, choose a player: they learn you are the Nightwatchman."},
+      {"name": "Noble", "ability": "You start knowing 3 players, 1 and only 1 of which is evil."},
+      {"name": "Oracle", "ability": "Each night*, you learn how many dead players are evil."},
+      {"name": "Pacifist", "ability": "Executed good players might not die."},
+      {"name": "Philosopher", "ability": "Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk."},
+      {"name": "Pixie", "ability": "You start knowing 1 in-play Townsfolk. If you were mad that you were this character, you gain their ability when they die."},
+      {"name": "Poppy Grower", "ability": "Minions & Demons do not know each other. If you die, they learn who each other are that night."},
+      {"name": "Preacher", "ability": "Each night, choose a player: a Minion, if chosen, learns this. All chosen Minions have no ability."},
+      {"name": "Professor", "ability": "Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected."},
+      {"name": "Ravenkeeper", "ability": "If you die at night, you are woken to choose a player: you learn their character."},
+      {"name": "Sage", "ability": "If the Demon kills you, you learn that it is 1 of 2 players."},
+      {"name": "Sailor", "ability": "Each night, choose an alive player: either you or they are drunk until dusk. You can't die."},
+      {"name": "Savant", "ability": "Each day, you may visit the Storyteller to learn 2 things in private: 1 is true & 1 is false."},
+      {"name": "Seamstress", "ability": "Once per game, at night, choose 2 players (not yourself): you learn if they are the same alignment."},
+      {"name": "Shugenja", "ability": "You start knowing if your closest evil player is clockwise or anti-clockwise. If equidistant, this info is arbitrary."},
+      {"name": "Slayer", "ability": "Once per game, during the day, publicly choose a player: if they are the Demon, they die."},
+      {"name": "Snake Charmer", "ability": "Each night, choose an alive player: a chosen Demon swaps characters & alignments with you & is then poisoned."},
+      {"name": "Soldier", "ability": "You are safe from the Demon."},
+      {"name": "Steward", "ability": "You start knowing 1 good player."},
+      {"name": "Tea Lady", "ability": "If both your alive neighbors are good, they can't die."},
+      {"name": "Town Crier", "ability": "Each night*, you learn if a Minion nominated today."},
+      {"name": "Undertaker", "ability": "Each night*, you learn which character died by execution today."},
+      {"name": "Village Idiot", "ability": "Each night, choose a player: you learn their alignment. [+0 to +2 Village Idiots. 1 of the extras is drunk]"},
+      {"name": "Virgin", "ability": "The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately."},
+      {"name": "Washerwoman", "ability": "You start knowing that 1 of 2 players is a particular Townsfolk."}
+    ],
+    "Outsider": [
+      {"name": "Barber", "ability": "If you died today or tonight, the Demon may choose 2 players (not another Demon) to swap characters."},
+      {"name": "Butler", "ability": "Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too."},
+      {"name": "Damsel", "ability": "All Minions know a Damsel is in play. If a Minion publicly guesses you (once), your team loses."},
+      {"name": "Drunk", "ability": "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."},
+      {"name": "Golem", "ability": "You may only nominate once per game. When you do, if the nominee is not the Demon, they die."},
+      {"name": "Goon", "ability": "Each night, the 1st player to choose you with their ability is drunk until dusk. You become their alignment."},
+      {"name": "Hatter", "ability": "If you died today or tonight, the Minion & Demon players may choose new Minion & Demon characters to be."},
+      {"name": "Heretic", "ability": "Whoever wins, loses & whoever loses, wins, even if you are dead."},
+      {"name": "Klutz", "ability": "When you learn that you died, publicly choose 1 alive player: if they are evil, your team loses."},
+      {"name": "Lunatic", "ability": "You think you are a Demon, but you are not. The Demon knows who you are & who you choose at night."},
+      {"name": "Moonchild", "ability": "When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die."},
+      {"name": "Mutant", "ability": "If you are 'mad' about being an Outsider, you might be executed."},
+      {"name": "Ogre", "ability": "On your 1st night, choose a player (not yourself): you become their alignment (you don't know which) even if drunk or poisoned."},
+      {"name": "Plague Doctor", "ability": "When you die, the Storyteller gains a Minion ability."},
+      {"name": "Politician", "ability": "If you were the player most responsible for your team losing, you change alignment & win, even if dead."},
+      {"name": "Puzzlemaster", "ability": "1 player is drunk, even if you die. If you guess (once) who it is, learn the Demon player, but guess wrong & get false info."},
+      {"name": "Recluse", "ability": "You might register as evil & as a Minion or Demon, even if dead."},
+      {"name": "Saint", "ability": "If you die by execution, your team loses."},
+      {"name": "Snitch", "ability": "Each Minion gets 3 bluffs."},
+      {"name": "Sweetheart", "ability": "When you die, 1 player is drunk from now on."},
+      {"name": "Tinker", "ability": "You might die at any time."},
+      {"name": "Zealot", "ability": "If there are 5 or more players alive, you must vote for every nomination."}
+    ],
+    "Minion": [
+      {"name": "Assassin", "ability": "Once per game, at night*, choose a player: they die, even if for some reason they could not."},
+      {"name": "Baron", "ability": "There are extra Outsiders in play. [+2 Outsiders]"},
+      {"name": "Boffin", "ability": "The Demon (even if drunk or poisoned) has a not-in-play good character's ability. You both know which."},
+      {"name": "Boomdandy", "ability": "If you are executed, all but 3 players die. After a 10 to 1 countdown, the player with the most players pointing at them, dies."},
+      {"name": "Cerenovus", "ability": "Each night, choose a player & a good character: they are 'mad' they are this character tomorrow, or might be executed."},
+      {"name": "Devil's Advocate", "ability": "Each night, choose a living player (different to last night): if executed tomorrow, they don't die."},
+      {"name": "Evil Twin", "ability": "You & an opposing player know each other. If the good player is executed, evil wins. Good can't win if you both live."},
+      {"name": "Fearmonger", "ability": "Each night, choose a player: if you nominate & execute them, their team loses. All players know if you choose a new player."},
+      {"name": "Goblin", "ability": "If you publicly claim to be the Goblin when nominated & are executed that day, your team wins."},
+      {"name": "Godfather", "ability": "You start knowing which Outsiders are in play. If 1 died today, choose a player tonight: they die. [-1 or +1 Outsider]"},
+      {"name": "Harpy", "ability": "Each night, choose 2 players: tomorrow, the 1st player is mad that the 2nd is evil, or one or both might die."},
+      {"name": "Marionette", "ability": "You think you are a good character, but you are not. The Demon knows who you are. [You neighbor the Demon]"},
+      {"name": "Mastermind", "ability": "If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses."},
+      {"name": "Mezepheles", "ability": "You start knowing a secret word. The 1st good player to say this word becomes evil that night."},
+      {"name": "Organ Grinder", "ability": "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."},
+      {"name": "Poisoner", "ability": "Each night, choose a player: they are poisoned tonight and tomorrow day."},
+      {"name": "Psychopath", "ability": "Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo."},
+      {"name": "Scarlet Woman", "ability": "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count.)"},
+      {"name": "Spy", "ability": "Each night, you see the Grimoire. You might register as good & as a Townsfolk or Outsider, even if dead."},
+      {"name": "Summoner", "ability": "You get 3 bluffs. On the 3rd night, choose a player: they become an evil Demon of your choice. [No Demon]"},
+      {"name": "Vizier", "ability": "All players know you are the Vizier. You cannot die during the day. If good voted, you may choose to execute immediately."},
+      {"name": "Widow", "ability": "On your 1st night, look at the Grimoire & choose a player: they are poisoned. 1 good player knows a Widow is in play."},
+      {"name": "Witch", "ability": "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."},
+      {"name": "Wizard", "ability": "Once per game, choose to make a wish. If granted, it might have a price & leave a clue as to its nature."},
+      {"name": "Xaan", "ability": "On night X, all Townsfolk are poisoned until dusk. [X Outsiders]"}
+    ],
+    "Demon": [
+      {"name": "Al-Hadikhia", "ability": "Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die."},
+      {"name": "Fang Gu", "ability": "Each night*, choose a player: they die. The 1st Outsider this kills becomes an evil Fang Gu & you die instead. [+1 Outsider]"},
+      {"name": "Imp", "ability": "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp."},
+      {"name": "Kazali", "ability": "Each night*, choose a player: they die. [You choose which players are which Minions. -? to +? Outsiders]"},
+      {"name": "Legion", "ability": "Each night*, a player might die. Executions fail if only evil voted. You register as a Minion too. [Most players are Legion]"},
+      {"name": "Leviathan", "ability": "If more than 1 good player is executed, evil wins. All players know you are in play. After day 5, evil wins."},
+      {"name": "Lil' Monsta", "ability": "Each night, Minions choose who babysits Lil' Monsta & 'is the Demon'. Each night*, a player might die. [+1 Minion]"},
+      {"name": "Lleech", "ability": "Each night*, choose a player: they die. You start by choosing a player: they are poisoned. You die if & only if they are dead."},
+      {"name": "Lord of Typhon", "ability": "Each night*, choose a player: they die. [Evil characters are in a line. You are in the middle. +1 Minion. -? to +? Outsiders]"},
+      {"name": "No Dashii", "ability": "Each night*, choose a player: they die. Your 2 Townsfolk neighbors are poisoned."},
+      {"name": "Ojo", "ability": "Each night*, choose a character: they die. If they are not in play, the Storyteller chooses who dies."},
+      {"name": "Po", "ability": "Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight."},
+      {"name": "Pukka", "ability": "Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy."},
+      {"name": "Riot", "ability": "On day 3, Minions become Riot & nominees die but nominate an alive player immediately. This must happen."},
+      {"name": "Shabaloth", "ability": "Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated."},
+      {"name": "Vigormortis", "ability": "Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbor. [-1 Outsider]"},
+      {"name": "Vortox", "ability": "Each night*, choose a player: they die. Townsfolk abilities yield false info. Each day, if no-one is executed, evil wins."},
+      {"name": "Yaggababble", "ability": "You start knowing a secret phrase. For each time you said it publicly today, a player might die."},
+      {"name": "Zombuul", "ability": "Each night*, if no-one died today, choose a player: they die. The 1st time you die, you live but register as dead."}
+    ],
+    "Traveller": [
+      {"name": "Bureaucrat", "ability": "Each night, choose a player (not yourself): their vote counts as 3 votes tomorrow."},
+      {"name": "Thief", "ability": "Each night, choose a player (not yourself): their vote counts negatively tomorrow."}
+    ],
+    "Fabled": [
+      {"name": "Sentinel", "ability": "There might be 1 extra or 1 fewer Outsider in play."}
+    ]
+  }
+}
+;
+
+const colors = {
+  Townsfolk: 'var(--townsfolk)', Outsider: 'var(--outsider)',
+  Minion: 'var(--minion)', Demon: 'var(--demon)',
+  Traveller: 'var(--traveller)', Fabled: 'var(--fabled)'
+};
+
+// Flatten characters with their type
+const all = [];
+for (const [type, chars] of Object.entries(DATA.characters)) {
+  for (const c of chars) all.push({ ...c, type });
+}
+
+let deck = [];
+let idx = 0;
+let flipped = false;
+
+document.getElementById('scriptName').textContent =
+  `Script: ${DATA.script} · ${all.length} characters`;
+
+// Build type filter
+const filter = document.getElementById('typeFilter');
+filter.innerHTML = '<option value="All">All types</option>' +
+  Object.keys(DATA.characters)
+    .map(t => `<option value="${t}">${t} (${DATA.characters[t].length})</option>`)
+    .join('');
+
+function buildDeck() {
+  const t = filter.value;
+  deck = t === 'All' ? [...all] : all.filter(c => c.type === t);
+  idx = 0;
+  flipped = false;
+  render();
+}
+
+function shuffle() {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  idx = 0;
+  flipped = false;
+  render();
+}
+
+function flip() { flipped = !flipped; render(); }
+function next() { idx = (idx + 1) % deck.length; flipped = false; render(); }
+function prev() { idx = (idx - 1 + deck.length) % deck.length; flipped = false; render(); }
+
+function render() {
+  const c = deck[idx];
+  const mode = document.getElementById('mode').value; // 'name' or 'ability'
+  const card = document.getElementById('card');
+  const badge = document.getElementById('badge');
+  const front = document.getElementById('front');
+  const back = document.getElementById('back');
+
+  badge.textContent = c.type;
+  badge.style.background = colors[c.type] || '#4a5568';
+  card.style.borderTopColor = colors[c.type] || '#4a5568';
+
+  const nameHtml = `<div class="name">${c.name}</div>`;
+  const abilityHtml = `<div class="ability">${c.ability}</div>`;
+
+  // Front = prompt side, Back = answer side
+  const promptHtml = mode === 'name' ? nameHtml : abilityHtml;
+  const answerHtml = mode === 'name' ? abilityHtml : nameHtml;
+
+  front.style.display = flipped ? 'none' : 'block';
+  back.style.display = flipped ? 'block' : 'none';
+  front.innerHTML = promptHtml;
+  back.innerHTML = answerHtml;
+
+  document.getElementById('hint').textContent = flipped ? 'Click to hide' : 'Click card to reveal';
+  document.getElementById('progress').textContent = `${idx + 1} / ${deck.length}`;
+}
+
+filter.addEventListener('change', buildDeck);
+document.getElementById('mode').addEventListener('change', () => { flipped = false; render(); });
+document.getElementById('shuffle').addEventListener('click', shuffle);
+
+// Keyboard: space/enter flip, arrows navigate
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+  else if (e.key === 'ArrowRight') next();
+  else if (e.key === 'ArrowLeft') prev();
+});
+
+buildDeck();
+</script>
+</body>
+</html>
