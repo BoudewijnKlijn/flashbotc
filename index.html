@@ -10,8 +10,6 @@
     --outsider: #2c7a7b;
     --minion: #c05621;
     --demon: #c53030;
-    --traveller: #6b46c1;
-    --fabled: #b7791f;
   }
   * { box-sizing: border-box; }
   body {
@@ -23,11 +21,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 24px;
+    padding: 24px 16px;
+    -webkit-tap-highlight-color: transparent;
   }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .sub { color: #a0aec0; font-size: .85rem; margin-bottom: 20px; }
-  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+  h1 { font-size: 1.4rem; margin: 0 0 20px; text-align: center; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; width: min(90vw, 460px); }
   select, button {
     font: inherit;
     padding: 8px 14px;
@@ -69,11 +67,17 @@
   .hint { color: #718096; font-size: .8rem; margin-top: 20px; }
   .nav { display: flex; gap: 12px; margin-top: 18px; align-items: center; }
   .progress { color: #a0aec0; font-size: .9rem; min-width: 70px; text-align: center; }
+
+  /* On phones: full-width, thumb-friendly controls */
+  @media (max-width: 480px) {
+    h1 { font-size: 1.2rem; }
+    .controls > * { flex: 1 1 100%; padding: 12px 14px; text-align: center; }
+    .nav button { padding: 12px 18px; }
+  }
 </style>
 </head>
 <body>
   <h1>Blood on the Clocktower — Flashcards</h1>
-  <div class="sub" id="scriptName"></div>
 
   <div class="controls">
     <select id="scriptFilter"></select>
@@ -89,7 +93,7 @@
     <div class="badge" id="badge"></div>
     <div id="front"></div>
     <div id="back" style="display:none"></div>
-    <div class="hint" id="hint">Click card to flip</div>
+    <div class="hint" id="hint">Tap card to flip</div>
   </div>
 
   <div class="nav">
@@ -243,13 +247,6 @@ const DATA = {
       {"name": "Vortox", "ability": "Each night*, choose a player: they die. Townsfolk abilities yield false info. Each day, if no-one is executed, evil wins."},
       {"name": "Yaggababble", "ability": "You start knowing a secret phrase. For each time you said it publicly today, a player might die."},
       {"name": "Zombuul", "ability": "Each night*, if no-one died today, choose a player: they die. The 1st time you die, you live but register as dead."}
-    ],
-    "Traveller": [
-      {"name": "Bureaucrat", "ability": "Each night, choose a player (not yourself): their vote counts as 3 votes tomorrow."},
-      {"name": "Thief", "ability": "Each night, choose a player (not yourself): their vote counts negatively tomorrow."}
-    ],
-    "Fabled": [
-      {"name": "Sentinel", "ability": "There might be 1 extra or 1 fewer Outsider in play."}
     ]
   }
 }
@@ -257,8 +254,7 @@ const DATA = {
 
 const colors = {
   Townsfolk: 'var(--townsfolk)', Outsider: 'var(--outsider)',
-  Minion: 'var(--minion)', Demon: 'var(--demon)',
-  Traveller: 'var(--traveller)', Fabled: 'var(--fabled)'
+  Minion: 'var(--minion)', Demon: 'var(--demon)'
 };
 
 // Official base-edition character lists
@@ -279,9 +275,6 @@ let deck = [];
 let idx = 0;
 let flipped = false;
 let ordered = true; // true = team/alphabetical order, false = shuffled
-
-document.getElementById('scriptName').textContent =
-  `Script: ${DATA.script} · ${all.length} characters`;
 
 // Build script filter
 const scriptFilter = document.getElementById('scriptFilter');
@@ -362,7 +355,7 @@ function render() {
   front.innerHTML = promptHtml;
   back.innerHTML = answerHtml;
 
-  document.getElementById('hint').textContent = flipped ? 'Click to hide' : 'Click card to reveal';
+  document.getElementById('hint').textContent = flipped ? 'Tap to hide' : 'Tap to reveal';
   document.getElementById('progress').textContent = `${idx + 1} / ${deck.length}`;
 }
 
