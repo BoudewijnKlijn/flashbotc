@@ -76,6 +76,7 @@
   <div class="sub" id="scriptName"></div>
 
   <div class="controls">
+    <select id="scriptFilter"></select>
     <select id="typeFilter"></select>
     <select id="mode">
       <option value="name">Show name → guess ability</option>
@@ -210,6 +211,7 @@ const DATA = {
       {"name": "Mastermind", "ability": "If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses."},
       {"name": "Mezepheles", "ability": "You start knowing a secret word. The 1st good player to say this word becomes evil that night."},
       {"name": "Organ Grinder", "ability": "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."},
+      {"name": "Pit-Hag", "ability": "Each night*, choose a player & a character they become (if not in play). If a Demon is made, deaths tonight are arbitrary."},
       {"name": "Poisoner", "ability": "Each night, choose a player: they are poisoned tonight and tomorrow day."},
       {"name": "Psychopath", "ability": "Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo."},
       {"name": "Scarlet Woman", "ability": "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count.)"},
@@ -259,6 +261,14 @@ const colors = {
   Traveller: 'var(--traveller)', Fabled: 'var(--fabled)'
 };
 
+// Official base-edition character lists
+const SCRIPTS = {
+  "All characters": null, // null = no script filter
+  "Trouble Brewing": ["Washerwoman","Librarian","Investigator","Chef","Empath","Fortune Teller","Undertaker","Monk","Ravenkeeper","Virgin","Slayer","Soldier","Mayor","Butler","Drunk","Recluse","Saint","Poisoner","Spy","Scarlet Woman","Baron","Imp"],
+  "Bad Moon Rising": ["Grandmother","Sailor","Chambermaid","Exorcist","Innkeeper","Gambler","Gossip","Courtier","Professor","Minstrel","Tea Lady","Pacifist","Fool","Goon","Lunatic","Tinker","Moonchild","Godfather","Devil's Advocate","Assassin","Mastermind","Zombuul","Pukka","Shabaloth","Po"],
+  "Sects & Violets": ["Clockmaker","Dreamer","Snake Charmer","Mathematician","Flowergirl","Town Crier","Oracle","Savant","Seamstress","Philosopher","Artist","Juggler","Sage","Mutant","Sweetheart","Barber","Klutz","Evil Twin","Witch","Cerenovus","Pit-Hag","Fang Gu","Vigormortis","No Dashii","Vortox"]
+};
+
 // Flatten characters with their type
 const all = [];
 for (const [type, chars] of Object.entries(DATA.characters)) {
@@ -272,16 +282,29 @@ let flipped = false;
 document.getElementById('scriptName').textContent =
   `Script: ${DATA.script} · ${all.length} characters`;
 
+// Build script filter
+const scriptFilter = document.getElementById('scriptFilter');
+scriptFilter.innerHTML = Object.entries(SCRIPTS)
+  .map(([name, list]) => {
+    const count = list ? list.length : all.length;
+    return `<option value="${name}">${name} (${count})</option>`;
+  })
+  .join('');
+
 // Build type filter
 const filter = document.getElementById('typeFilter');
 filter.innerHTML = '<option value="All">All types</option>' +
   Object.keys(DATA.characters)
-    .map(t => `<option value="${t}">${t} (${DATA.characters[t].length})</option>`)
+    .map(t => `<option value="${t}">${t}</option>`)
     .join('');
 
 function buildDeck() {
+  const scriptList = SCRIPTS[scriptFilter.value]; // null = all characters
   const t = filter.value;
-  deck = t === 'All' ? [...all] : all.filter(c => c.type === t);
+  deck = all.filter(c =>
+    (scriptList === null || scriptList.includes(c.name)) &&
+    (t === 'All' || c.type === t)
+  );
   idx = 0;
   flipped = false;
   render();
@@ -302,6 +325,14 @@ function next() { idx = (idx + 1) % deck.length; flipped = false; render(); }
 function prev() { idx = (idx - 1 + deck.length) % deck.length; flipped = false; render(); }
 
 function render() {
+  if (deck.length === 0) {
+    document.getElementById('badge').textContent = '';
+    document.getElementById('front').innerHTML = '<div class="ability">No characters of this type in this script.</div>';
+    document.getElementById('back').innerHTML = '';
+    document.getElementById('hint').textContent = '';
+    document.getElementById('progress').textContent = '0 / 0';
+    return;
+  }
   const c = deck[idx];
   const mode = document.getElementById('mode').value; // 'name' or 'ability'
   const card = document.getElementById('card');
@@ -329,6 +360,7 @@ function render() {
   document.getElementById('progress').textContent = `${idx + 1} / ${deck.length}`;
 }
 
+scriptFilter.addEventListener('change', buildDeck);
 filter.addEventListener('change', buildDeck);
 document.getElementById('mode').addEventListener('change', () => { flipped = false; render(); });
 document.getElementById('shuffle').addEventListener('click', shuffle);
