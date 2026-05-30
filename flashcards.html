@@ -82,7 +82,7 @@
       <option value="name">Show name → guess ability</option>
       <option value="ability">Show ability → guess name</option>
     </select>
-    <button id="shuffle">🔀 Shuffle</button>
+    <button id="orderToggle">📋 In order</button>
   </div>
 
   <div class="card" id="card" onclick="flip()">
@@ -278,6 +278,7 @@ for (const [type, chars] of Object.entries(DATA.characters)) {
 let deck = [];
 let idx = 0;
 let flipped = false;
+let ordered = true; // true = team/alphabetical order, false = shuffled
 
 document.getElementById('scriptName').textContent =
   `Script: ${DATA.script} · ${all.length} characters`;
@@ -305,19 +306,24 @@ function buildDeck() {
     (scriptList === null || scriptList.includes(c.name)) &&
     (t === 'All' || c.type === t)
   );
+  if (!ordered) shuffleDeck();
   idx = 0;
   flipped = false;
   render();
 }
 
-function shuffle() {
+// Fisher–Yates permutation of the current deck, in place
+function shuffleDeck() {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
-  idx = 0;
-  flipped = false;
-  render();
+}
+
+function toggleOrder() {
+  ordered = !ordered;
+  document.getElementById('orderToggle').textContent = ordered ? '📋 In order' : '🔀 Shuffle';
+  buildDeck();
 }
 
 function flip() { flipped = !flipped; render(); }
@@ -363,7 +369,7 @@ function render() {
 scriptFilter.addEventListener('change', buildDeck);
 filter.addEventListener('change', buildDeck);
 document.getElementById('mode').addEventListener('change', () => { flipped = false; render(); });
-document.getElementById('shuffle').addEventListener('click', shuffle);
+document.getElementById('orderToggle').addEventListener('click', toggleOrder);
 
 // Keyboard: space/enter flip, arrows navigate
 document.addEventListener('keydown', e => {
